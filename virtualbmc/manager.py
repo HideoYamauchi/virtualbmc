@@ -89,10 +89,10 @@ class VirtualBMCManager(object):
             libvirt_sasl_username, libvirt_sasl_password):
 
         # check libvirt's connection and if domain exist prior to adding it
-        utils.check_libvirt_connection_and_domain(
-            libvirt_uri, domain_name,
-            sasl_username=libvirt_sasl_username,
-            sasl_password=libvirt_sasl_password)
+        #utils.check_libvirt_connection_and_domain(
+        #    libvirt_uri, domain_name,
+        #    sasl_username=libvirt_sasl_username,
+        #    sasl_password=libvirt_sasl_password)
 
         domain_path = os.path.join(self.config_dir, domain_name)
         try:
@@ -143,10 +143,10 @@ class VirtualBMCManager(object):
         bmc_config = self._parse_config(domain_name)
 
         # check libvirt's connection and domain prior to starting the BMC
-        utils.check_libvirt_connection_and_domain(
-            bmc_config['libvirt_uri'], domain_name,
-            sasl_username=bmc_config['libvirt_sasl_username'],
-            sasl_password=bmc_config['libvirt_sasl_password'])
+        #utils.check_libvirt_connection_and_domain(
+        #    bmc_config['libvirt_uri'], domain_name,
+        #    sasl_username=bmc_config['libvirt_sasl_username'],
+        #    sasl_password=bmc_config['libvirt_sasl_password'])
 
         # mask the passwords if requested
         log_config = bmc_config.copy()
