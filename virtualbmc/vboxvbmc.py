@@ -18,7 +18,10 @@ POWERON = 1
 
 class VBoxVirtualBMC(bmc.Bmc):
 
-    def __init__(self, username, password, port, address, domain_name):
+    def __init__(self, username, password, port, address, domain_name,
+                 libvirt_uri, libvirt_sasl_username=None,
+                 libvirt_sasl_password=None):
+        # TODO: remove livbirt_* and generalize parameters list
         super(VBoxVirtualBMC, self).__init__({username: password},
                                          port=port, address=address)
         self.domain_name = domain_name
