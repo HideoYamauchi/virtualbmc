@@ -12,6 +12,8 @@
 
 #import libvirt
 import os
+import subprocess
+import sys
 
 from virtualbmc import exception
 
@@ -94,7 +96,7 @@ def mask_dict_password(dictionary, secret='***'):
     return d
 
 
-class detach_process(object):
+class detach_process_linux(object):
     """Detach the process from its parent and session."""
 
     def _fork(self):
@@ -143,3 +145,63 @@ class detach_process(object):
 
     def __exit__(self, type, value, traceback):
         pass
+
+class detach_process_windows(object):
+    """Detach the process from its parent and session."""
+
+    def _change_root_directory(self):
+        """Change to root directory.
+
+        Ensure that our process doesn't keep any directory in use. Failure
+        to do this could make it so that an administrator couldn't
+        unmount a filesystem, because it was our current directory.
+        """
+        try:
+            os.chdir('/')
+        except Exception as e:
+            error = ('Failed to change root directory. Error: %s' % e)
+            raise exception.DetachProcessError(error=error)
+
+    def _change_file_creation_mask(self):
+        """Set the umask for new files.
+
+        Set the umask for new files the process creates so that it does
+        have complete control over the permissions of them. We don't
+        know what umask we may have inherited.
+        """
+        try:
+            os.umask(0)
+        except Exception as e:
+            error = ('Failed to change file creation mask. Error: %s' % e)
+            raise exception.DetachProcessError(error=error)
+
+    def __enter__(self):
+        if '__DETACHED_PROCESS__' in os.environ:
+            # child process
+            del os.environ['__DETACHED_PROCESS__']
+
+            self._change_root_directory()
+            self._change_file_creation_mask()
+            return os.getpid()
+
+        # parent process
+        python_path = os.path.abspath(sys.executable)
+        script_path = os.path.abspath(sys.argv[0])
+
+        # no need copy()ing because the parent will exit very soon
+        child_env = os.environ
+        child_env['__DETACHED_PROCESS__'] = 'True'
+
+        proc = subprocess.Popen(
+            [python_path, script_path] + sys.argv[1:],
+            env=child_env,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+        sys.exit(0)
+
+    def __exit__(self, type, value, traceback):
+        pass
+
+
+### TODO:
+detach_process = detach_process_windows

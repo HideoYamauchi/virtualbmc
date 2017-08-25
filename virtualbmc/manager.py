@@ -14,7 +14,6 @@ import errno
 import os
 import shutil
 import signal
-import subprocess
 
 import six
 from six.moves import configparser
@@ -144,21 +143,6 @@ class VirtualBMCManager(object):
 
         bmc_config = self._parse_config(domain_name)
 
-        python_path = 'c:\Python27\python.exe'
-        #python_path = 'c:\Python27\pythonw.exe'
-        proc = subprocess.Popen(
-            python_path + ' ./virtualbmc/cmd/vbmc.py start-daemon ' + domain_name,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
-        )
-
-
-    def start_daemon(self, domain_name):
-        domain_path = os.path.join(self.config_dir, domain_name)
-        if not os.path.exists(domain_path):
-            raise exception.DomainNotFound(domain=domain_name)
-
-        bmc_config = self._parse_config(domain_name)
-
         # check libvirt's connection and domain prior to starting the BMC
         #utils.check_libvirt_connection_and_domain(
         #    bmc_config['libvirt_uri'], domain_name,
@@ -176,24 +160,24 @@ class VirtualBMCManager(object):
                    'config': ' '.join(['%s="%s"' % (k, log_config[k])
                                        for k in log_config])})
 
-        pid_num = os.getpid()
-        try:
-            vbmc = VBoxVirtualBMC(**bmc_config)
-        except Exception as e:
-            msg = ('Error starting a Virtual BMC for domain %(domain)s. '
-                   'Error: %(error)s' % {'domain': domain_name,
-                                         'error': e})
-            LOG.error(msg)
-            raise exception.VirtualBMCError(msg)
+        with utils.detach_process() as pid_num:
+            try:
+                vbmc = VBoxVirtualBMC(**bmc_config)
+            except Exception as e:
+                msg = ('Error starting a Virtual BMC for domain %(domain)s. '
+                       'Error: %(error)s' % {'domain': domain_name,
+                                             'error': e})
+                LOG.error(msg)
+                raise exception.VirtualBMCError(msg)
 
-        # Save the PID number
-        pidfile_path = os.path.join(domain_path, 'pid')
-        with open(pidfile_path, 'w') as f:
-            f.write(str(pid_num))
+            # Save the PID number
+            pidfile_path = os.path.join(domain_path, 'pid')
+            with open(pidfile_path, 'w') as f:
+                f.write(str(pid_num))
 
-        LOG.info('Virtual BMC for domain %s started', domain_name)
-        #vbmc.listen(timeout=CONF['ipmi']['session_timeout'])
-        vbmc.listen(300) # TODO: workaround for error 10049
+            LOG.info('Virtual BMC for domain %s started', domain_name)
+            #vbmc.listen(timeout=CONF['ipmi']['session_timeout'])
+            vbmc.listen(300) # TODO: workaround for error 10049
 
     def stop(self, domain_name):
         LOG.debug('Stopping Virtual BMC for domain %s', domain_name)

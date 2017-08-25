@@ -83,12 +83,6 @@ def main():
     parser_start.add_argument('domain_name',
                               help='The name of the virtual machine')
 
-    # create the parser for the "start-daemon" command
-    parser_start = subparsers.add_parser('start-daemon', help='Start a virtual BMC(internal use only)')
-    parser_start.set_defaults(command='start-daemon')
-    parser_start.add_argument('domain_name',
-                              help='The name of the virtual machine')
-
     # create the parser for the "stop" command
     parser_stop = subparsers.add_parser('stop', help='Stop a virtual BMC')
     parser_stop.set_defaults(command='stop')
@@ -133,9 +127,6 @@ def main():
 
         elif args.command == 'start':
             manager.start(args.domain_name)
-
-        elif args.command == 'start-daemon':
-            manager.start_daemon(args.domain_name)
 
         elif args.command == 'stop':
             for domain in args.domain_names:
