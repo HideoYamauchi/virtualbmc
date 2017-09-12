@@ -12,8 +12,10 @@
 
 #import libvirt
 import os
+import platform
 import subprocess
 import sys
+import psutil # windows platform only
 
 from virtualbmc import exception
 
@@ -71,12 +73,15 @@ def check_libvirt_connection_and_domain(uri, domain, sasl_username=None,
         get_libvirt_domain(conn, domain)
 """
 
-def is_pid_running(pid):
+def is_pid_running_linux(pid):
     try:
         os.kill(pid, 0)
         return True
     except OSError:
         return False
+
+def is_pid_running_windows(pid):
+    return psutil.pid_exists(pid)
 
 
 def str2bool(string):
@@ -187,15 +192,23 @@ class detach_process_windows(object):
         # parent process
         python_path = os.path.abspath(sys.executable)
         script_path = os.path.abspath(sys.argv[0])
+        if hasattr(sys, 'frozen'): # for py2exe, pyInstaller
+            cmdline = [script_path] + sys.argv[1:]
+        else:
+            cmdline = [python_path, script_path] + sys.argv[1:]
 
         # no need copy()ing because the parent will exit very soon
         child_env = os.environ
         child_env['__DETACHED_PROCESS__'] = 'True'
 
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         proc = subprocess.Popen(
-            [python_path, script_path] + sys.argv[1:],
+            cmdline,
             env=child_env,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+            startupinfo=si,
+            close_fds=True
         )
         sys.exit(0)
 
@@ -203,5 +216,9 @@ class detach_process_windows(object):
         pass
 
 
-### TODO:
-detach_process = detach_process_windows
+if platform.system() == 'Windows':
+    detach_process = detach_process_windows
+    is_pid_running = is_pid_running_windows
+else: # assumes Linux
+    detach_process = detach_process_linux
+    is_pid_running = is_pid_running_linux
