@@ -3,6 +3,7 @@ import platform
 import re
 import subprocess
 import shlex
+import time
 import xml.etree.ElementTree as ET
 
 import pyghmi.ipmi.bmc as bmc
@@ -103,6 +104,30 @@ class VBoxVirtualBMC(bmc.Bmc):
             status, out, err = self.run_vboxmanage("startvm " + self.domain_name + " --type headless")
         except Exception as e:
             LOG.error('Error powering off the domain %(domain)s. '
+                      'Error: %(error)s' % {'domain': self.domain_name,
+                                            'error': e})
+            # Command not supported in present state
+            return 0xd5
+
+    def power_cycle(self):
+        LOG.debug('Power cycle called for domain %s', self.domain_name)
+        try:
+            status, out, err = self.run_vboxmanage("controlvm " + self.domain_name + " poweroff")
+            time.sleep(1)
+            status, out, err = self.run_vboxmanage("startvm " + self.domain_name + " --type headless")
+        except Exception as e:
+            LOG.error('Error power cycle the domain %(domain)s. '
+                      'Error: %(error)s' % {'domain': self.domain_name,
+                                            'error': e})
+            # Command not supported in present state
+            return 0xd5
+
+    def power_reset(self):
+        LOG.debug('Power reset called for domain %s', self.domain_name)
+        try:
+            status, out, err = self.run_vboxmanage("controlvm " + self.domain_name + " reset")
+        except Exception as e:
+            LOG.error('Error power reset the domain %(domain)s. '
                       'Error: %(error)s' % {'domain': self.domain_name,
                                             'error': e})
             # Command not supported in present state
