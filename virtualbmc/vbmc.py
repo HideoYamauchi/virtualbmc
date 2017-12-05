@@ -10,6 +10,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import time
 import xml.etree.ElementTree as ET
 
 import libvirt
@@ -144,6 +145,36 @@ class VirtualBMC(bmc.Bmc):
                     domain.create()
         except libvirt.libvirtError as e:
             LOG.error('Error powering on the domain %(domain)s. '
+                      'Error: %(error)s' % {'domain': self.domain_name,
+                                            'error': e})
+            # Command not supported in present state
+            return 0xd5
+
+    def power_cycle(self):
+        LOG.debug('Power cycle called for domain %s', self.domain_name)
+        try:
+            with utils.libvirt_open(**self._conn_args) as conn:
+                domain = utils.get_libvirt_domain(conn, self.domain_name)
+                if domain.isActive():
+                    domain.destroy()
+                time.sleep(1)
+                domain.create()
+        except libvirt.libvirtError as e:
+            LOG.error('Error power cycle the domain %(domain)s. '
+                      'Error: %(error)s' % {'domain': self.domain_name,
+                                            'error': e})
+            # Command not supported in present state
+            return 0xd5
+
+    def power_reset(self):
+        LOG.debug('Power reset called for domain %s', self.domain_name)
+        try:
+            with utils.libvirt_open(**self._conn_args) as conn:
+                domain = utils.get_libvirt_domain(conn, self.domain_name)
+                if domain.isActive():
+                    domain.reset()
+        except libvirt.libvirtError as e:
+            LOG.error('Error power reset the domain %(domain)s. '
                       'Error: %(error)s' % {'domain': self.domain_name,
                                             'error': e})
             # Command not supported in present state
