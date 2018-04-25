@@ -20,7 +20,7 @@ POWERON = 1
 class VBoxVirtualBMC(bmc.Bmc):
 
     def __init__(self, username, password, port, address, domain_name,
-                 libvirt_uri, libvirt_sasl_username=None,
+                 libvirt_uri=None, libvirt_sasl_username=None,
                  libvirt_sasl_password=None):
         # TODO: remove livbirt_* and generalize parameters list
         super(VBoxVirtualBMC, self).__init__({username: password},
@@ -64,6 +64,7 @@ class VBoxVirtualBMC(bmc.Bmc):
 
         #status, out, err = self.run_command(self.vbox_cmdline("list vms"))
         status, out, err = self.run_vboxmanage("list vms")
+        LOG.debug('status = %s, out = %s, err = %s' % (status, out, err))
         for line in out.splitlines():
             dom = regex.search(line)
             if dom is not None:

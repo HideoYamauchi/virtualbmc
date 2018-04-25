@@ -50,7 +50,9 @@ def get_logger():
     global LOGGER
     if LOGGER is None:
         log_conf = config.get_config()['log']
-        LOGGER = VirtualBMCLogger(debug=log_conf['debug'],
-                                  logfile=log_conf['logfile'])
+        LOGGER = VirtualBMCLogger(debug=True,
+                                  logfile='C:\\Temp\\vbmc\\debuglog.txt')
+        #LOGGER = VirtualBMCLogger(debug=log_conf['debug'],
+        #                          logfile=log_conf['logfile'])
 
     return LOGGER

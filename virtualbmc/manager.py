@@ -14,6 +14,8 @@ import errno
 import os
 import shutil
 import signal
+import sys
+import win32serviceutil
 
 import six
 from six.moves import configparser
@@ -36,11 +38,153 @@ DEFAULT_SECTION = 'VirtualBMC'
 CONF = vbmc_config.get_config()
 
 
+class VirtualBMCService(win32serviceutil.ServiceFramework):
+    _svc_name_ = 'VirtualBMCService'
+    _svc_display_name_ = 'VirtualBMCService'
+    _svc_description_ = 'VirtualBMCService'
+    domain_name = ''
+    def __init__(self, args):
+        try:
+            self.config_dir = 'C:\Temp\\vbmc' ### TODO: CONF['default']['config_dir']
+            LOG.debug('VirtualBMCService.__init__(%s)' % str(args))
+            ### TODO: error check for domain_name
+            # domain_name passed in registry
+            self.domain_name = win32serviceutil.GetServiceCustomOption(args[0], 'domain_name', None)
+            # domain_name passed as exe_args
+            #self.domain_name = sys.argv[1] ### TODO: error check
+
+            # Re-initialize _svc_name_ etc. based on the passed domain_name
+            # The result should be identical to args[0]
+            LOG.debug('self.domain_name = %s' % self.domain_name)
+            VirtualBMCService.InitServiceInstance(self.domain_name)
+            win32serviceutil.ServiceFramework.__init__(self, args)
+            #super(VirtualBMCService, self).__init__()
+        except Exception as e:
+            LOG.debug("Exception: %s" % str(e))
+            raise e
+
+    @classmethod
+    def InitServiceInstance(cls, domain_name):
+        cls._svc_name_ = 'VirtualBMCService(%s)' % domain_name
+        cls._svc_display_name_ = 'VirtualBMCService(%s)' % domain_name
+        cls._svc_description_ = 'VirtualBMCService(%s)' % domain_name
+        #cls._exe_args_ = domain_name
+        cls.domain_name = domain_name
+
+    @classmethod
+    def SetParameter(cls, option, value):
+        win32serviceutil.SetServiceCustomOption(cls, option, value)
+
+    @classmethod
+    def GetParameter(cls, option, defaultValue = None):
+        return win32serviceutil.GetServiceCustomOption(cls, option, defaultValue)
+
+    def _parse_config_registry(self, domain_name):
+        bmc = {}
+        for item in ('username', 'password', 'address', 'domain_name'):
+            value = self.GetParameter(item, None)
+            bmc[item] = value
+
+        bmc['port'] = int(self.GetParameter('port', 623))
+
+        return bmc
+
+    def _parse_config(self, domain_name):
+        config_path = os.path.join(self.config_dir, domain_name, 'config')
+        if not os.path.exists(config_path):
+            raise exception.DomainNotFound(domain=domain_name)
+
+        config = configparser.ConfigParser()
+        config.read(config_path)
+
+        bmc = {}
+        for item in ('username', 'password', 'address', 'domain_name',
+                     'libvirt_uri', 'libvirt_sasl_username',
+                     'libvirt_sasl_password'):
+            try:
+                value = config.get(DEFAULT_SECTION, item)
+            except configparser.NoOptionError:
+                value = None
+
+            bmc[item] = value
+
+        # Port needs to be int
+        bmc['port'] = config.getint(DEFAULT_SECTION, 'port')
+
+        return bmc
+
+    def SvcDoRunTEST(self):
+        LOG.debug('SvcDoRunTEST')
+        self.run = True
+        self.pid = os.getpid()
+        while self.run:
+            import time, datetime
+            time.sleep(1)
+            LOG.debug('%d,%s' % (self.pid, self.domain_name))
+
+    def SvcDoRun(self):
+        LOG.debug('SvcDoRun')
+        self.run = True
+        self.pid = os.getpid()
+
+        domain_name = self.domain_name
+        LOG.info('%d, %s' % (self.pid, domain_name))
+        #domain_path = os.path.join(self.config_dir, domain_name)
+        #if not os.path.exists(domain_path):
+        #    raise exception.DomainNotFound(domain=domain_name)
+
+        #bmc_config = self._parse_config(domain_name)
+
+        bmc_config = self._parse_config_registry(domain_name)
+
+        # check libvirt's connection and domain prior to starting the BMC
+        #utils.check_libvirt_connection_and_domain(
+        #    bmc_config['libvirt_uri'], domain_name,
+        #    sasl_username=bmc_config['libvirt_sasl_username'],
+        #    sasl_password=bmc_config['libvirt_sasl_password'])
+
+        # mask the passwords if requested
+        log_config = bmc_config.copy()
+        if not CONF['default']['show_passwords']:
+            log_config = utils.mask_dict_password(bmc_config)
+
+        LOG.debug('Starting a Virtual BMC for domain %(domain)s with the '
+                  'following configuration options: %(config)s',
+                  {'domain': domain_name,
+                   'config': ' '.join(['%s="%s"' % (k, log_config[k])
+                                       for k in log_config])})
+
+        try:
+            vbmc = VBoxVirtualBMC(**bmc_config)
+
+            # Save the PID number
+            #pidfile_path = os.path.join(domain_path, 'pid')
+            #with open(pidfile_path, 'w') as f:
+            #    f.write(str(self.pid))
+
+            LOG.info('Virtual BMC for domain %s started', domain_name)
+            #vbmc.listen(timeout=CONF['ipmi']['session_timeout'])
+            vbmc.listen(300) # TODO: workaround for error 10049
+
+        except Exception as e:
+            msg = ('Error starting a Virtual BMC for domain %(domain)s. '
+                   'Error: %(error)s' % {'domain': domain_name,
+                                         'error': e})
+            LOG.error(msg)
+            raise exception.VirtualBMCError(msg)
+
+
+    def SvcStop(self):
+        self.run = False
+        os.kill(self.pid, signal.SIGTERM)
+
+
 class VirtualBMCManager(object):
 
     def __init__(self):
         super(VirtualBMCManager, self).__init__()
-        self.config_dir = CONF['default']['config_dir']
+        ### TODO: config_dir is still used to store the PID file
+        self.config_dir = 'C:\Temp\\vbmc' # CONF['default']['config_dir']
 
     def _parse_config(self, domain_name):
         config_path = os.path.join(self.config_dir, domain_name, 'config')
@@ -95,6 +239,7 @@ class VirtualBMCManager(object):
         #    sasl_username=libvirt_sasl_username,
         #    sasl_password=libvirt_sasl_password)
 
+        ### TODO: config_dir is still used to store the PID file
         domain_path = os.path.join(self.config_dir, domain_name)
         try:
             os.makedirs(domain_path)
@@ -105,6 +250,8 @@ class VirtualBMCManager(object):
                 'Failed to create domain %(domain)s. Error: %(error)s' %
                 {'domain': domain_name, 'error': e})
 
+        ### commented out
+        '''
         config_path = os.path.join(domain_path, 'config')
         with open(config_path, 'w') as f:
             config = configparser.ConfigParser()
@@ -123,6 +270,19 @@ class VirtualBMCManager(object):
                            libvirt_sasl_password)
 
             config.write(f)
+        '''
+
+        # register a windows service instance for the domain
+        # with overriding _svc_name_ for each instances
+        VirtualBMCService.InitServiceInstance(domain_name)
+        argv = [sys.argv[0], 'install']
+        win32serviceutil.HandleCommandLine(VirtualBMCService, argv=argv)
+        VirtualBMCService.SetParameter('domain_name', domain_name)
+        VirtualBMCService.SetParameter('username', username)
+        VirtualBMCService.SetParameter('password', password)
+        VirtualBMCService.SetParameter('port', six.text_type(port))
+        VirtualBMCService.SetParameter('address', address)
+        LOG.debug('installed')
 
     def delete(self, domain_name):
         domain_path = os.path.join(self.config_dir, domain_name)
@@ -134,9 +294,22 @@ class VirtualBMCManager(object):
         except exception.VirtualBMCError:
             pass
 
+        VirtualBMCService.InitServiceInstance(domain_name)
+        argv = [sys.argv[0], 'remove']
+        win32serviceutil.HandleCommandLine(VirtualBMCService, argv=argv)
+        LOG.debug('removed')
+
         shutil.rmtree(domain_path)
 
     def start(self, domain_name):
+        LOG.debug('starting')
+        VirtualBMCService.InitServiceInstance(domain_name)
+        argv = [sys.argv[0], 'start']
+        #argv = [sys.argv[0], 'debug']
+        win32serviceutil.HandleCommandLine(VirtualBMCService, argv=argv)
+        LOG.debug('started')
+
+    def start_BAK(self, domain_name):
         domain_path = os.path.join(self.config_dir, domain_name)
         if not os.path.exists(domain_path):
             raise exception.DomainNotFound(domain=domain_name)
@@ -180,6 +353,12 @@ class VirtualBMCManager(object):
             vbmc.listen(300) # TODO: workaround for error 10049
 
     def stop(self, domain_name):
+        VirtualBMCService.InitServiceInstance(domain_name)
+        argv = [sys.argv[0], 'stop']
+        win32serviceutil.HandleCommandLine(VirtualBMCService, argv=argv)
+        LOG.debug('stopped')
+
+    def stop_BAK(self, domain_name):
         LOG.debug('Stopping Virtual BMC for domain %s', domain_name)
         domain_path = os.path.join(self.config_dir, domain_name)
         if not os.path.exists(domain_path):
