@@ -121,6 +121,7 @@ class VirtualBMC(bmc.Bmc):
             # Command not supported in present state
             return 0xd5
 
+    '''
     def power_cycle(self):
         LOG.debug('Power cycle called for domain %s', self.domain_name)
         try:
@@ -150,6 +151,7 @@ class VirtualBMC(bmc.Bmc):
                                             'error': e})
             # Command not supported in present state
             return 0xd5
+    '''
 
     def power_shutdown(self):
         LOG.debug('Soft power off called for domain %s', self.domain_name)
