@@ -10,6 +10,8 @@ import pyghmi.ipmi.bmc as bmc
 
 from virtualbmc import log
 from virtualbmc import utils
+from virtualbmc import exception
+
 
 LOG = log.get_logger()
 
@@ -30,7 +32,7 @@ class VBoxVirtualBMC(bmc.Bmc):
         elif system == 'Windows':
             self.vboxmanage_path = 'c:/Program Files/Oracle/VirtualBox/VBoxManage.exe'
         else:
-            raise VirtualBMCError("Not supported system: " + system)
+            raise exception.VirtualBMCError("Not supported system: " + system)
 
     def run_command(self, command):
         process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -45,7 +47,7 @@ class VBoxVirtualBMC(bmc.Bmc):
         elif system == 'Windows':
             vboxmanage_path = 'c:/Program Files/Oracle/VirtualBox/VBoxManage.exe'
         else:
-            raise VirtualBMCError("Not supported system: " + system)
+            raise exception.VirtualBMCError("Not supported system: " + system)
         return vboxmanage_path + " " + options
 
     def run_vboxmanage(self, options):

@@ -21,6 +21,7 @@ import pyghmi.ipmi.bmc as bmc
 
 from virtualbmc import log
 from virtualbmc import utils
+from virtualbmc import exception
 
 LOG = log.get_logger()
 
@@ -66,7 +67,7 @@ class VirtualBMC(bmc.Bmc):
         elif system == 'Windows':
             vboxmanage_path = 'c:/Program Files/Oracle/VirtualBox/VBoxManage.exe'
         else:
-            raise VirtualBMCError("Not supported system: " + system)
+            raise exception.VirtualBMCError("Not supported system: " + system)
         return vboxmanage_path + " " + options
 
     def get_list_vms(self):
