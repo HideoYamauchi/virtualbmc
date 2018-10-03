@@ -21,18 +21,23 @@ POWERON = 1
 
 class VBoxVirtualBMC(bmc.Bmc):
 
-    def __init__(self, username, password, port, address, domain_name):
+    def __init__(self, username, password, port, address, domain_name,
+                 libvirt_uri, libvirt_sasl_username=None,
+                 libvirt_sasl_password=None):
+        # TODO: remove livbirt_* and generalize parameters list
         super(VBoxVirtualBMC, self).__init__({username: password},
                                          port=port, address=address)
         self.domain_name = domain_name
         self.vboxmanage_path = '' # can be a customized parameter
         system = platform.system()
-        if system == 'Linux':
-            self.vboxmanage_path = 'VBoxManage'
-        elif system == 'Windows':
+        if system == 'Windows':
             self.vboxmanage_path = 'c:/Program Files/Oracle/VirtualBox/VBoxManage.exe'
+            self.vboxmanage_cmd = [self.vboxmanage_path]
         else:
-            raise exception.VirtualBMCError("Not supported system: " + system)
+            # Linux and Darwin should work with PATH
+            self.vboxmanage_path = 'VBoxManage'
+            # TODO
+            self.vboxmanage_cmd = ['su', 'ksk', self.vboxmanage_path]
 
     def run_command(self, command):
         process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -42,16 +47,14 @@ class VBoxVirtualBMC(bmc.Bmc):
 
     def vbox_cmdline(self, options):
         system = platform.system()
-        if system == 'Linux':
-            vboxmanage_path = 'VBoxManage'
-        elif system == 'Windows':
+        # Linux and Darwin should work with PATH
+        vboxmanage_path = 'VBoxManage'
+        if system == 'Windows':
             vboxmanage_path = 'c:/Program Files/Oracle/VirtualBox/VBoxManage.exe'
-        else:
-            raise exception.VirtualBMCError("Not supported system: " + system)
         return vboxmanage_path + " " + options
 
     def run_vboxmanage(self, options):
-        process = subprocess.Popen([self.vboxmanage_path] + shlex.split(options), 
+        process = subprocess.Popen(self.vboxmanage_cmd + shlex.split(options),
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         status = process.wait()
         (out, err) = process.communicate()
@@ -83,9 +86,11 @@ class VBoxVirtualBMC(bmc.Bmc):
             vms = self.get_list_vms()
             return vms[self.domain_name]
         except Exception as e:
+            import traceback
             LOG.error('Error getting the power state of domain %(domain)s. '
-                      'Error: %(error)s', {'domain': self.domain_name,
-                                           'error': e})
+                      '%(type)s: %(error)s', {'domain': self.domain_name,
+                                              'type': type(e).__name__,
+                                              'error': e})
             # Command not supported in present state
             return 0xd5
 

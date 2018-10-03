@@ -62,12 +62,10 @@ class VirtualBMC(bmc.Bmc):
 
     def vbox_cmdline(self, options):
         system = platform.system()
-        if system == 'Linux':
-            vboxmanage_path = 'VBoxManage'
-        elif system == 'Windows':
+        # Linux and Darwin should work with PATH
+        vboxmanage_path = 'VBoxManage'
+        if system == 'Windows':
             vboxmanage_path = 'c:/Program Files/Oracle/VirtualBox/VBoxManage.exe'
-        else:
-            raise exception.VirtualBMCError("Not supported system: " + system)
         return vboxmanage_path + " " + options
 
     def get_list_vms(self):

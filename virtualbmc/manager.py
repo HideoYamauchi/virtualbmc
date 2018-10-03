@@ -23,6 +23,7 @@ from virtualbmc import exception
 from virtualbmc import log
 from virtualbmc import utils
 from virtualbmc.vbmc import VirtualBMC
+from virtualbmc.vboxvbmc import VBoxVirtualBMC
 
 LOG = log.get_logger()
 
@@ -161,7 +162,7 @@ class VirtualBMCManager(object):
 
         with utils.detach_process() as pid_num:
             try:
-                vbmc = VirtualBMC(**bmc_config)
+                vbmc = VBoxVirtualBMC(**bmc_config)
             except Exception as e:
                 msg = ('Error starting a Virtual BMC for domain %(domain)s. '
                        'Error: %(error)s' % {'domain': domain_name,
