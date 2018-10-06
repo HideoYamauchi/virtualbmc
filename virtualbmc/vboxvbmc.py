@@ -28,16 +28,18 @@ class VBoxVirtualBMC(bmc.Bmc):
         super(VBoxVirtualBMC, self).__init__({username: password},
                                          port=port, address=address)
         self.domain_name = domain_name
-        self.vboxmanage_path = '' # can be a customized parameter
+        # Linux and Darwin should work with PATH
+        self.vboxmanage_path = 'VBoxManage' # can be a customized parameter
+        self.vboxmanage_cmd = [self.vboxmanage_path]
         system = platform.system()
         if system == 'Windows':
             self.vboxmanage_path = 'c:/Program Files/Oracle/VirtualBox/VBoxManage.exe'
-            self.vboxmanage_cmd = [self.vboxmanage_path]
-        else:
-            # Linux and Darwin should work with PATH
-            self.vboxmanage_path = 'VBoxManage'
-            # TODO
-            self.vboxmanage_cmd = ['su', 'ksk', self.vboxmanage_path]
+
+        if libvirt_sasl_username:
+            su = 'su'
+            if system == 'Linux': # assumes CentOS/RHEL
+                su = 'runuser'
+            self.vboxmanage_cmd = [su, libvirt_sasl_username, self.vboxmanage_path]
 
     def run_command(self, command):
         process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)

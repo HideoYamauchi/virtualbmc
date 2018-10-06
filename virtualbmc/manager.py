@@ -116,6 +116,15 @@ class VirtualBMCManager(object):
             config.set(DEFAULT_SECTION, 'domain_name', domain_name)
             config.set(DEFAULT_SECTION, 'libvirt_uri', libvirt_uri)
 
+            # for vbox support
+            #  assume running user is the vbox user
+            #  reusing sasl_username option
+            import pwd
+            vbox_user = pwd.getpwuid(os.getuid())
+            if libvirt_sasl_username == None and vbox_user[0] != 'root':
+                libvirt_sasl_username = vbox_user[0]
+                libvirt_sasl_password = 'not used'
+
             if libvirt_sasl_username and libvirt_sasl_password:
                 config.set(DEFAULT_SECTION, 'libvirt_sasl_username',
                            libvirt_sasl_username)
