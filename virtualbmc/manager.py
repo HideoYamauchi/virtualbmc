@@ -22,7 +22,8 @@ from virtualbmc import config as vbmc_config
 from virtualbmc import exception
 from virtualbmc import log
 from virtualbmc import utils
-from virtualbmc.vbmc import VirtualBMC
+#from virtualbmc.vbmc import VirtualBMC
+from virtualbmc.vboxvbmc import VBoxVirtualBMC
 
 LOG = log.get_logger()
 
@@ -123,7 +124,7 @@ class VirtualBMCManager(object):
                 show_options = utils.mask_dict_password(bmc_config)
 
             try:
-                vbmc = VirtualBMC(**bmc_config)
+                vbmc = VBoxVirtualBMC(**bmc_config)
 
             except Exception as ex:
                 LOG.error(
@@ -233,6 +234,15 @@ class VirtualBMCManager(object):
         #    libvirt_uri, domain_name,
         #    sasl_username=libvirt_sasl_username,
         #    sasl_password=libvirt_sasl_password)
+
+        # for vbox support
+        #  assume running user is the vbox user
+        #  reusing sasl_username option
+        import pwd
+        vbox_user = pwd.getpwuid(os.getuid())
+        if libvirt_sasl_username == None and vbox_user[0] != 'root':
+            libvirt_sasl_username = vbox_user[0]
+            #libvirt_sasl_password = 'not used'
 
         domain_path = os.path.join(self.config_dir, domain_name)
 
