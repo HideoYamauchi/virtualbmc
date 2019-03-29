@@ -10,12 +10,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import libvirt
+#import libvirt
 import os
 
 from virtualbmc import exception
 
-
+commentout = """
 class libvirt_open(object):
 
     def __init__(self, uri, sasl_username=None, sasl_password=None,
@@ -67,7 +67,7 @@ def check_libvirt_connection_and_domain(uri, domain, sasl_username=None,
     with libvirt_open(uri, readonly=True, sasl_username=sasl_username,
                       sasl_password=sasl_password) as conn:
         get_libvirt_domain(conn, domain)
-
+"""
 
 def is_pid_running(pid):
     try:

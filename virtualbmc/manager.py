@@ -229,10 +229,10 @@ class VirtualBMCManager(object):
             **kwargs):
 
         # check libvirt's connection and if domain exist prior to adding it
-        utils.check_libvirt_connection_and_domain(
-            libvirt_uri, domain_name,
-            sasl_username=libvirt_sasl_username,
-            sasl_password=libvirt_sasl_password)
+        #utils.check_libvirt_connection_and_domain(
+        #    libvirt_uri, domain_name,
+        #    sasl_username=libvirt_sasl_username,
+        #    sasl_password=libvirt_sasl_password)
 
         domain_path = os.path.join(self.config_dir, domain_name)
 

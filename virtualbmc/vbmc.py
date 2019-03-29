@@ -13,7 +13,7 @@
 import sys
 import xml.etree.ElementTree as ET
 
-import libvirt
+#import libvirt
 import pyghmi.ipmi.bmc as bmc
 
 from virtualbmc import exception
@@ -61,6 +61,7 @@ class VirtualBMC(bmc.Bmc):
                            'sasl_username': libvirt_sasl_username,
                            'sasl_password': libvirt_sasl_password}
 
+commentout = """
     def get_boot_device(self):
         LOG.debug('Get boot device called for %(domain)s',
                   {'domain': self.domain_name})
@@ -206,3 +207,5 @@ class VirtualBMC(bmc.Bmc):
                                            'error': e})
             # Command not supported in present state
             return IPMI_COMMAND_NODE_BUSY
+
+"""
